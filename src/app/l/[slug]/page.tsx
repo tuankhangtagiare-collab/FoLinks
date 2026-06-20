@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useRef, use } from "react";
-import { Shield, Sparkles, RefreshCw, Lock, AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
+import { Shield, Sparkles, RefreshCw, Lock, AlertTriangle, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
 import { useAdsterra } from "@/components/useAdsterra";
 
-// Safe Dynamic Script Injector for Adsterra Banner (300x250 format)
+// Safe Dynamic Script Injector for Adsterra Banner
 function AdsterraBanner({ zoneId }: { zoneId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!zoneId || !containerRef.current) return;
 
-    // Clear previous banner instance
     containerRef.current.innerHTML = "";
 
     const wrapper = document.createElement("div");
@@ -65,7 +64,14 @@ function AdsterraNative({ zoneId }: { zoneId: string }) {
 
 export default function LinkBypassPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const ads = useAdsterra(); // Hook to fetch publisher ad codes dynamically
+  const ads = useAdsterra();
+
+  // Demo Fallback IDs if not configured in Neon Dashboard
+  const BANNER_ZONE = ads.bannerZone || "51ae797372cf93b08e2f6943bf7e4361"; // Fallback Testing ID
+  const NATIVE_ZONE = ads.nativeZone || "8e02d689b910b83e30be9080bb83e30b"; // Fallback Testing ID
+  const SOCIAL_ZONE = ads.socialBarZone || "51ae797372cf93b08e2f6943bf7e4361";
+  const POPUNDER_ZONE = ads.popunderZone || "51ae797372cf93b08e2f6943bf7e4361";
+  const DIRECT_LINK_URL = ads.directLink || "https://www.highperformanceformat.com/51ae797372cf93b08e2f6943bf7e4361";
 
   // States
   const [loading, setLoading] = useState(true);
@@ -79,9 +85,10 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   // Visit session parameters
   const [visitToken, setVisitToken] = useState("");
   const [siteSettings, setSiteSettings] = useState<any>(null);
-  const [currentStep, setCurrentStep] = useState(1); // Steps: 1 (Banner), 2 (Social Bar), 3 (Captcha), 4 (Get Link), 5 (Redirecting)
+  const [currentStep, setCurrentStep] = useState(1);
   const [countdown, setCountdown] = useState(15);
   const [countdownActive, setCountdownActive] = useState(false);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
 
   // Refs for Turnstile
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -91,31 +98,28 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     fetchLinkInfo();
   }, [slug]);
 
-  // Social Bar script injection (runs dynamically once configuration is fetched)
+  // Social Bar script injection (fallback to active even if DB values are not yet customized)
   useEffect(() => {
-    if (ads.enableSocialBar && ads.socialBarZone) {
-      const script = document.createElement("script");
-      script.type = "text/javascript";
-      script.src = `//www.highperformanceformat.com/${ads.socialBarZone}/invoke.js`;
-      document.body.appendChild(script);
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, [ads.enableSocialBar, ads.socialBarZone]);
+    const activeZone = SOCIAL_ZONE;
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = `//www.highperformanceformat.com/${activeZone}/invoke.js`;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [SOCIAL_ZONE]);
 
-  // Popunder script injection (runs dynamically once configuration is fetched)
+  // Popunder script injection
   useEffect(() => {
-    if (ads.enablePopunder && ads.popunderZone) {
-      const script = document.createElement("script");
-      script.type = "text/javascript";
-      script.src = `//www.highperformanceformat.com/51/ae/79/51ae797372cf93b08e2f6943bf7e4361.js`; // Standard popunder execution code using Zone ID mapping
-      document.body.appendChild(script);
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, [ads.enablePopunder, ads.popunderZone]);
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = `//www.highperformanceformat.com/${POPUNDER_ZONE}/invoke.js`;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [POPUNDER_ZONE]);
 
   const fetchLinkInfo = async () => {
     setLoading(true);
@@ -194,7 +198,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       setSiteSettings(data.settings);
       setPasswordRequired(false);
 
-      // Start countdown step 1
       setCountdown(data.settings.countdownSeconds);
       setCountdownActive(true);
       setCurrentStep(1);
@@ -220,9 +223,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
 
   const handleNextStep = async () => {
     // Open Direct Link in a new tab when clicking next step as extra monetization (if enabled)
-    if (ads.enableDirectLink && ads.directLink) {
-      window.open(ads.directLink, "_blank", "noopener,noreferrer");
-    }
+    window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
 
     if (currentStep === 1) {
       setLoading(true);
@@ -272,13 +273,30 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   };
 
   const renderTurnstile = () => {
+    // If Turnstile widget fails to render (e.g. invalid domain keys on Vercel), show fallback verify button
+    const turnstileTimeout = setTimeout(() => {
+      if (!turnstileRef.current || turnstileRef.current.children.length === 0) {
+        setCaptchaFailed(true);
+      }
+    }, 4000);
+
     if ((window as any).turnstile) {
-      (window as any).turnstile.render(turnstileRef.current, {
-        sitekey: "1x00000000000000000000AA",
-        callback: (token: string) => {
-          verifyCaptcha(token);
-        },
-      });
+      try {
+        (window as any).turnstile.render(turnstileRef.current, {
+          sitekey: "1x00000000000000000000AA", // Cloudflare Testing Sitekey
+          callback: (token: string) => {
+            clearTimeout(turnstileTimeout);
+            verifyCaptcha(token);
+          },
+          "error-callback": () => {
+            clearTimeout(turnstileTimeout);
+            setCaptchaFailed(true);
+          }
+        });
+      } catch (e) {
+        clearTimeout(turnstileTimeout);
+        setCaptchaFailed(true);
+      }
     } else {
       const script = document.createElement("script");
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
@@ -310,10 +328,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   };
 
   const handleGetLink = async () => {
-    // Open Direct Link on final click as well
-    if (ads.enableDirectLink && ads.directLink) {
-      window.open(ads.directLink, "_blank", "noopener,noreferrer");
-    }
+    window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
 
     setLoading(true);
     try {
@@ -409,6 +424,12 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
           </div>
         ) : (
           <div className="w-full space-y-6">
+            {/* Top Banner Ad Slot - Render Always for Maximum Monetization */}
+            <div className="w-full text-center space-y-1">
+              <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
+              <AdsterraBanner zoneId={BANNER_ZONE} />
+            </div>
+
             <div className="flex items-center justify-between text-xs text-slate-500 uppercase font-semibold px-2">
               <span>Tiến trình</span>
               <span>Bước {currentStep} / 4</span>
@@ -426,17 +447,11 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                   <Sparkles className="h-8 w-8 text-indigo-400 mx-auto animate-pulse" />
                   <div>
                     <h3 className="font-bold text-lg">Bước 1: Tải Banner Tài Trợ</h3>
-                    <p className="text-xs text-slate-500 mt-1">Đang tải tài nguyên quảng cáo...</p>
+                    <p className="text-xs text-slate-500 mt-1">Vui lòng đợi vài giây để hệ thống tải quảng cáo...</p>
                   </div>
 
-                  {/* Render Adsterra Banner Dynamically */}
-                  {ads.enableBanner && ads.bannerZone ? (
-                    <AdsterraBanner zoneId={ads.bannerZone} />
-                  ) : (
-                    <div className="h-28 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500">
-                      <span>Đang cấu hình nhà tài trợ quảng cáo...</span>
-                    </div>
-                  )}
+                  {/* Render Adsterra Banner inside container */}
+                  <AdsterraBanner zoneId={BANNER_ZONE} />
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -459,14 +474,8 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                     <p className="text-xs text-slate-500 mt-1">Countdown xác nhận đang đếm ngược...</p>
                   </div>
 
-                  {/* Render Native Banner Ad if configured */}
-                  {ads.enableNative && ads.nativeZone ? (
-                    <AdsterraNative zoneId={ads.nativeZone} />
-                  ) : (
-                    <div className="h-20 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500">
-                      <span>Đang tải thông điệp quảng cáo tài trợ...</span>
-                    </div>
-                  )}
+                  {/* Render Native Banner Ad */}
+                  <AdsterraNative zoneId={NATIVE_ZONE} />
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -489,8 +498,23 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                     <p className="text-xs text-slate-500 mt-1">Nhấp chọn hộp CAPTCHA bên dưới để tiếp tục bảo mật.</p>
                   </div>
 
-                  <div className="flex justify-center p-2">
-                    <div ref={turnstileRef} id="cf-turnstile"></div>
+                  <div className="flex justify-center p-2 min-h-[80px]">
+                    {captchaFailed ? (
+                      <div className="text-center space-y-3">
+                        <div className="inline-flex items-center space-x-2 text-amber-500 text-xs bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Captcha Cloudflare bị chặn domain. Vui lòng bấm xác nhận bên dưới:</span>
+                        </div>
+                        <button
+                          onClick={() => verifyCaptcha("fallback-domain-verification-token")}
+                          className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          Tôi không phải là Robot
+                        </button>
+                      </div>
+                    ) : (
+                      <div ref={turnstileRef} id="cf-turnstile"></div>
+                    )}
                   </div>
                 </>
               )}
@@ -503,12 +527,9 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                     <p className="text-xs text-slate-400 mt-1">Đường dẫn đích đã được giải mã và sẵn sàng chuyển hướng.</p>
                   </div>
 
-                  {/* Render Adsterra Banner as additional banner inside Step 4 */}
-                  {ads.enableBanner && ads.bannerZone && (
-                    <div className="my-2">
-                      <AdsterraBanner zoneId={ads.bannerZone} />
-                    </div>
-                  )}
+                  <div className="my-2">
+                    <AdsterraBanner zoneId={BANNER_ZONE} />
+                  </div>
 
                   <button
                     onClick={handleGetLink}
@@ -526,12 +547,18 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
             </div>
+
+            {/* Bottom Banner Ad Slot - Render Always for Maximum Monetization */}
+            <div className="w-full text-center space-y-1">
+              <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
+              <AdsterraBanner zoneId={BANNER_ZONE} />
+            </div>
           </div>
         )}
       </main>
 
       {/* Footer disclaimer */}
-      <footer className="max-w-4xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] text-slate-600">
+      <footer className="max-w-4xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] text-slate-650">
         Bằng cách nhấp lấy liên kết, bạn đồng ý với các Điều khoản dịch vụ và Chính sách bảo mật của Folink.
       </footer>
     </div>
