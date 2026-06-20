@@ -55,15 +55,19 @@ export function getClientIp(req: NextRequest): string {
 
 // Helmet & CSP Headers setup helper
 export function getSecurityHeaders() {
+  const AD_DOMAINS = `
+    https://*.adsterra.com https://cdn.adsterra.com
+    https://challenges.cloudflare.com
+    https://*.highperformanceformat.com https://highperformanceformat.com
+    https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
+    https://*.adtrafficquality.google https://*.googlesyndication.com
+    https://*.doubleclick.net https://*.googletagmanager.com
+  `;
+
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline'
-      https://*.adsterra.com https://cdn.adsterra.com
-      https://challenges.cloudflare.com
-      https://*.highperformanceformat.com https://highperformanceformat.com
-      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
-      https://*.adtrafficquality.google https://*.googlesyndication.com
-      https://*.doubleclick.net https://*.googletagmanager.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' ${AD_DOMAINS};
+    script-src-elem 'self' 'unsafe-inline' ${AD_DOMAINS};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.adsterra.com;
     img-src 'self' blob: data:
       https://res.cloudinary.com
