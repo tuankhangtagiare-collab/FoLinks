@@ -1,0 +1,735 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  BANNED
+}
+
+enum LinkStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
+enum WithdrawStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+enum TransactionType {
+  EARNING
+  WITHDRAW
+  BONUS
+  REFERRAL
+  ADJUSTMENT
+  DEPOSIT
+}
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+}
+
+enum VisitStatus {
+  VALID
+  INVALID
+  FRAUD
+}
+
+enum NotificationType {
+  SYSTEM
+  PAYMENT
+  SECURITY
+  INFO
+  SUPPORT
+  REPORT
+}
+
+model User {
+  id              String       @id @default(cuid())
+  email           String       @unique
+  passwordHash    String
+  username        String       @unique
+  displayName     String?
+  avatar          String?
+  background      String?
+  banner          String?
+  logo            String?
+  walletBalance   Decimal      @default(0) @db.Decimal(18, 6)
+  referralCode    String       @unique
+  referredById    String?
+  referredBy      User?        @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referees        User[]       @relation("UserReferrals")
+  role            Role         @default(USER)
+  status          UserStatus   @default(ACTIVE)
+  emailVerified   DateTime?
+  lastLogin       DateTime?
+  country         String?
+  language        String       @default("vi")
+  timezone        String       @default("UTC")
+  twoFactor       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  wallet          Wallet?
+  bankAccounts    BankAccount[]
+  apiApplications ApiApplication[]
+  apiKeys         ApiKey[]
+  apiVisits       ApiVisit[]
+  deviceFingerprints DeviceFingerprint[]
+  ipHistories     IPHistory[]
+  deviceSessions  DeviceSession[]
+  sessions        Session[]
+  transactions    Transaction[]
+  withdrawRequests WithdrawRequest[] @relation("UserWithdrawals")
+  approvedWithdraws WithdrawRequest[] @relation("AdminWithdrawals")
+  links           Link[]
+  referrers       Referral[]       @relation("ReferrerRelation")
+  refereeRelation Referral?        @relation("RefereeRelation")
+  referralEarnings ReferralEarning[] @relation("ReferralEarningUser")
+  sourceEarnings  ReferralEarning[] @relation("SourceUserEarnings")
+  notifications   Notification[]
+  activityLogs    ActivityLog[]
+  loginLogs       LoginLog[]
+  apiKeysLegacy   ApiKeys[]
+  auditLogs       AuditLog[]       @relation("AdminAuditLogs")
+  tickets         SupportTicket[]  @relation("UserTickets")
+  assignedTickets SupportTicket[]  @relation("AssigneeTickets")
+  messages        SupportMessage[]
+  reports         Report[]         @relation("UserReports")
+  cloudinaryAssets CloudinaryAsset[]
+
+  @@index([email])
+  @@index([username])
+  @@index([referralCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String?   @db.Text
+  expired      DateTime
+  ip           String?
+  browser      String?
+  device       DeviceType @default(DESKTOP)
+  location     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Wallet {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance        Decimal  @default(0) @db.Decimal(18, 6)
+  pendingBalance Decimal  @default(0) @db.Decimal(18, 6)
+  lockedBalance  Decimal  @default(0) @db.Decimal(18, 6)
+  totalEarned    Decimal  @default(0) @db.Decimal(18, 6)
+  totalWithdraw  Decimal  @default(0) @db.Decimal(18, 6)
+  totalBonus     Decimal  @default(0) @db.Decimal(18, 6)
+  currency       String   @default("USD")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  amount       Decimal         @db.Decimal(18, 6)
+  fee          Decimal         @default(0) @db.Decimal(18, 6)
+  type         TransactionType
+  status       WithdrawStatus  @default(PENDING)
+  description  String?         @db.Text
+  referenceId  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // Relations
+  referralEarnings ReferralEarning[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([referenceId])
+}
+
+model WithdrawRequest {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation("UserWithdrawals", fields: [userId], references: [id], onDelete: Restrict)
+  bankName      String
+  bankCode      String         @default("NAPAS")
+  accountNumber String
+  accountName   String
+  qr            String?
+  amount        Decimal        @db.Decimal(18, 6)
+  fee           Decimal        @default(0) @db.Decimal(18, 6)
+  netAmount     Decimal        @default(0) @db.Decimal(18, 6)
+  note          String?        @db.Text
+  status        WithdrawStatus @default(PENDING)
+  adminNote     String?        @db.Text
+  proofImage    String?
+  approvedById  String?
+  approvedBy    User?          @relation("AdminWithdrawals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedTime  DateTime?
+  rejectedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Link {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug         String     @unique
+  originalUrl  String     @db.Text
+  title        String?
+  description  String?    @db.Text
+  password     String?
+  cpm          Decimal    @db.Decimal(10, 4)
+  views        Int        @default(0)
+  validViews   Int        @default(0)
+  revenue      Decimal    @default(0) @db.Decimal(18, 6)
+  status       LinkStatus @default(ACTIVE)
+  expiredAt    DateTime?
+  targetCountry String?
+  targetDevice  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  visits       LinkVisit[]
+  reports      Report[]
+
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+  @@index([revenue])
+}
+
+model LinkVisit {
+  id          String      @id @default(cuid())
+  linkId      String
+  link        Link        @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  visitorIp   String
+  browser     String?
+  device      DeviceType  @default(DESKTOP)
+  os          String?
+  country     String?
+  city        String?
+  referrer    String?     @db.Text
+  fingerprint String?
+  visitTime   DateTime    @default(now())
+  reward      Decimal     @default(0) @db.Decimal(18, 6)
+  status      VisitStatus @default(VALID)
+  reason      String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  steps       VisitStep[]
+  fraudLogs   FraudLog[]
+
+  @@index([linkId])
+  @@index([visitorIp])
+  @@index([status])
+  @@index([visitTime])
+  @@index([fingerprint])
+  @@index([country])
+}
+
+model VisitStep {
+  id            String    @id @default(cuid())
+  visitId       String
+  visit         LinkVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  banner        Boolean   @default(false)
+  socialBar     Boolean   @default(false)
+  captcha       Boolean   @default(false)
+  countdown     Boolean   @default(false)
+  reward        Boolean   @default(false)
+  redirect      Boolean   @default(false)
+  completedTime DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([visitId])
+}
+
+model Referral {
+  id           String     @id @default(cuid())
+  referrerId   String
+  referrer     User       @relation("ReferrerRelation", fields: [referrerId], references: [id], onDelete: Cascade)
+  invitedUserId String    @unique
+  invitedUser  User       @relation("RefereeRelation", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  commission   Decimal    @default(0) @db.Decimal(18, 6)
+  percent      Decimal    @db.Decimal(5, 2)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  earnings     ReferralEarning[]
+
+  @@index([referrerId])
+  @@index([invitedUserId])
+}
+
+model ReferralEarning {
+  id            String      @id @default(cuid())
+  referralId    String
+  referral      Referral    @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  amount        Decimal     @db.Decimal(18, 6)
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  sourceUserId  String
+  sourceUser    User        @relation("SourceUserEarnings", fields: [sourceUserId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation("ReferralEarningUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([referralId])
+  @@index([transactionId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String           @db.Text
+  read      Boolean          @default(false)
+  type      NotificationType @default(INFO)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  ip        String
+  device    String?
+  browser   String?
+  url       String   @db.Text
+  method    String
+  payload   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email     String?
+  ip        String
+  country   String?
+  city      String?
+  device    String?
+  browser   String?
+  os        String?
+  success   Boolean
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model FraudLog {
+  id          String    @id @default(cuid())
+  visitId     String?
+  visit       LinkVisit? @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  reason      String    @db.Text
+  fingerprint String?
+  vpn         Boolean   @default(false)
+  proxy       Boolean   @default(false)
+  bot         Boolean   @default(false)
+  emulator    Boolean   @default(false)
+  riskScore   Decimal   @default(0) @db.Decimal(5, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([visitId])
+  @@index([fingerprint])
+  @@index([createdAt])
+}
+
+model SiteSettings {
+  id                    String   @id @default(cuid())
+  websiteName           String   @default("Folink")
+  logo                  String?
+  favicon               String?
+  description           String?  @db.Text
+  supportEmail          String   @default("support@folink.com")
+  maintenance           Boolean  @default(false)
+  maintenanceMessage    String?  @db.Text
+  minimumWithdraw       Decimal  @default(5.00) @db.Decimal(18, 6)
+  maximumWithdraw       Decimal  @default(1000.00) @db.Decimal(18, 6)
+  referralPercent       Decimal  @default(10.00) @db.Decimal(5, 2)
+  defaultCpm            Decimal  @default(3.00) @db.Decimal(10, 4)
+  bannerCode            String?  @db.Text
+  socialBarCode         String?  @db.Text
+  interstitialCode      String?  @db.Text
+  captchaEnabled        Boolean  @default(true)
+  countdownSeconds      Int      @default(15)
+  cloudinaryKey         String?
+  cloudinarySecret      String?
+  cloudinaryCloudName   String?
+  adsterraPublisherId   String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model BannerImages {
+  id           String   @id @default(cuid())
+  imageUrl     String   @db.Text
+  cloudinaryId String   @unique
+  alt          String?
+  position     String
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Announcements {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  status    String   @default("ACTIVE")
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApiKeys {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  key       String    @unique
+  secret    String
+  status    String    @default("ACTIVE")
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([key])
+}
+
+model DailyStatistics {
+  id         String   @id @default(cuid())
+  date       DateTime @unique
+  views      Int      @default(0)
+  validViews Int      @default(0)
+  revenue    Decimal  @default(0) @db.Decimal(18, 6)
+  users      Int      @default(0)
+  withdraw   Decimal  @default(0) @db.Decimal(18, 6)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([date])
+}
+
+model MonthlyStatistics {
+  id        String   @id @default(cuid())
+  month     String   @unique
+  views     Int      @default(0)
+  revenue   Decimal  @default(0) @db.Decimal(18, 6)
+  withdraw  Decimal  @default(0) @db.Decimal(18, 6)
+  users     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([month])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     User     @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: Restrict)
+  action    String
+  oldValue  String?  @db.Text
+  newValue  String?  @db.Text
+  time      DateTime @default(now())
+
+  @@index([adminId])
+  @@index([time])
+}
+
+model SupportTicket {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  status      String           @default("OPEN") // OPEN, ASSIGNED, CLOSED
+  priority    String           @default("LOW")  // LOW, MEDIUM, HIGH, URGENT
+  assigneeId  String?
+  assignee    User?            @relation("AssigneeTickets", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  messages    SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  message   String        @db.Text
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation("UserReports", fields: [userId], references: [id], onDelete: SetNull)
+  linkId    String
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  reason    String   @db.Text
+  status    String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([linkId])
+  @@index([status])
+}
+
+model CloudinaryAsset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicId  String   @unique
+  url       String
+  folder    String
+  bytes     Int
+  width     Int
+  height    Int
+  format    String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([publicId])
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName      String
+  bankCode      String
+  accountNumber String
+  accountName   String
+  isDefault     Boolean  @default(false)
+  verified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+model DeviceFingerprint {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint         String   @unique
+  canvas              String?  @db.Text
+  webgl               String?  @db.Text
+  fonts               String?  @db.Text
+  timezone            String?
+  screen              String?
+  language            String?
+  hardwareConcurrency Int?
+  memory              Int?
+  touchSupport        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  lastSeen            DateTime @default(now())
+
+  @@index([userId])
+  @@index([fingerprint])
+}
+
+model IPHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String
+  country   String?
+  asn       String?
+  isp       String?
+  proxy     Boolean  @default(false)
+  vpn       Boolean  @default(false)
+  tor       Boolean  @default(false)
+  hosting   Boolean  @default(false)
+  riskScore Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([ip])
+}
+
+model DeviceSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String   @unique
+  fingerprint String
+  deviceName  String?
+  browser     String?
+  os          String?
+  ip          String
+  lastSeen    DateTime @default(now())
+  status      String   @default("ACTIVE")
+
+  @@index([userId])
+}
+
+model ApiApplication {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?    @db.Text
+  logo         String?
+  website      String?
+  callbackUrl  String?
+  status       String     @default("ACTIVE") // ACTIVE, SUSPENDED
+  apiKey       String     @unique
+  apiSecret    String
+  dailyLimit   Int        @default(1000)
+  monthlyLimit Int        @default(30000)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  apiKeys      ApiKey[]
+  apiWebhooks  ApiWebhook[]
+  apiLogs      ApiLog[]
+
+  @@index([userId])
+  @@index([apiKey])
+}
+
+model ApiKey {
+  id             String         @id @default(cuid())
+  applicationId  String
+  application    ApiApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key            String         @unique // FoKey_...
+  mode           String         @default("ONE_BYPASS") // ONE_BYPASS, DOUBLE_BYPASS, CUSTOM
+  requiredBypass Int            @default(1)
+  completedBypass Int           @default(0)
+  reward         Decimal        @default(0) @db.Decimal(18, 6)
+  status         String         @default("PENDING") // PENDING, COMPLETED, EXPIRED, BLOCKED
+  expiredAt      DateTime
+  createdAt      DateTime       @default(now())
+  completedAt    DateTime?
+
+  apiVisits      ApiVisit[]
+
+  @@index([applicationId])
+  @@index([userId])
+  @@index([key])
+}
+
+model ApiVisit {
+  id          String   @id @default(cuid())
+  apiKeyId    String
+  apiKey      ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitorIp   String
+  fingerprint String?
+  device      String?
+  browser     String?
+  country     String?
+  riskScore   Decimal  @default(0) @db.Decimal(5, 2)
+  status      String   @default("VALID")
+  reward      Decimal  @default(0) @db.Decimal(18, 6)
+  createdAt   DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@index([userId])
+}
+
+model ApiWebhook {
+  id            String         @id @default(cuid())
+  applicationId String
+  application   ApiApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  url           String
+  secret        String
+  status        String         @default("ACTIVE")
+  retry         Int            @default(0)
+  createdAt     DateTime       @default(now())
+
+  @@index([applicationId])
+}
+
+model ApiLog {
+  id            String         @id @default(cuid())
+  applicationId String
+  application   ApiApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  endpoint      String
+  request       String?        @db.Text
+  response      String?        @db.Text
+  statusCode    Int
+  ip            String
+  duration      Int
+  createdAt     DateTime       @default(now())
+
+  @@index([applicationId])
+}
+
