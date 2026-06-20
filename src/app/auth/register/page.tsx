@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -20,6 +21,13 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     setSuccess(null);
+
+    // Validate client-side first
+    if (password !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/auth/register", {
@@ -31,19 +39,26 @@ export default function RegisterPage() {
           username,
           email,
           password,
+          confirmPassword,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Có lỗi xảy ra trong quá trình đăng ký.");
+        // Show detailed validation messages if present
+        if (data.details) {
+          const detailMsgs = Object.values(data.details).flat().join(". ");
+          setError(`${data.error}: ${detailMsgs}`);
+        } else {
+          setError(data.error || "Có lỗi xảy ra trong quá trình đăng ký.");
+        }
       } else {
         setSuccess("Đăng ký thành công! Hãy kiểm tra hòm thư của bạn để xác minh email.");
         setUsername("");
         setEmail("");
         setPassword("");
-        // Sau 3 giây tự động sang trang login
+        setConfirmPassword("");
         setTimeout(() => {
           router.push("/auth/login");
         }, 4000);
@@ -79,18 +94,18 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm leading-relaxed">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm leading-relaxed">
             {success}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300">Tên đăng nhập</label>
             <div className="relative">
@@ -122,7 +137,10 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Mật khẩu</label>
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-slate-300">Mật khẩu</label>
+              <span className="text-[10px] text-slate-500 italic">Cần chữ hoa, số, ký tự đặc biệt</span>
+            </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
               <input
@@ -130,7 +148,22 @@ export default function RegisterPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Mật khẩu cực kỳ bảo mật"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 transition-colors text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-300">Xác nhận mật khẩu</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Nhập lại mật khẩu"
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 transition-colors text-sm"
               />
             </div>
