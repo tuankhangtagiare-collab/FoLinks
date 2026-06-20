@@ -6,13 +6,11 @@ import * as bcrypt from "bcryptjs";
 import { LoginSchema } from "./lib/validation";
 import { logLogin } from "./lib/logger";
 import { headers } from "next/headers";
+import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
+  ...authConfig,
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -133,38 +131,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.username = (user as any).username;
-        token.role = (user as any).role;
-        token.avatar = (user as any).avatar;
-        token.walletBalance = (user as any).walletBalance;
-        token.emailVerified = (user as any).emailVerified;
-      }
-      
-      // Handle session updates (e.g. balance changed after shortening or withdrawal)
-      if (trigger === "update" && session) {
-        return { ...token, ...session };
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).username = token.username;
-        (session.user as any).role = token.role;
-        (session.user as any).avatar = token.avatar;
-        (session.user as any).walletBalance = token.walletBalance;
-        (session.user as any).emailVerified = token.emailVerified;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/auth/login",
-    error: "/auth/error",
-  },
 });
