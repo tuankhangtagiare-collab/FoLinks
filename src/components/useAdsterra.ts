@@ -38,7 +38,7 @@ export function useAdsterra(): AdsterraHookResult {
     let active = true;
     async function fetchConfig() {
       try {
-        const res = await fetch("/api/admin/adsterra");
+        const res = await fetch("/api/public/adsterra");
         if (res.ok) {
           const data = await res.json();
           if (active && data.settings) {

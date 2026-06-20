@@ -1,10 +1,71 @@
 "use client";
 
 import React, { useState, useEffect, useRef, use } from "react";
-import { Shield, Sparkles, HelpCircle, Eye, RefreshCw, Lock, AlertTriangle, ArrowRight } from "lucide-react";
+import { Shield, Sparkles, RefreshCw, Lock, AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
+import { useAdsterra } from "@/components/useAdsterra";
+
+// Safe Dynamic Script Injector for Adsterra Banner (300x250 format)
+function AdsterraBanner({ zoneId }: { zoneId: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!zoneId || !containerRef.current) return;
+
+    // Clear previous banner instance
+    containerRef.current.innerHTML = "";
+
+    const wrapper = document.createElement("div");
+    wrapper.id = `container-${zoneId}`;
+    containerRef.current.appendChild(wrapper);
+
+    const configScript = document.createElement("script");
+    configScript.type = "text/javascript";
+    configScript.innerHTML = `
+      atOptions = {
+        'key' : '${zoneId}',
+        'format' : 'iframe',
+        'height' : 250,
+        'width' : 300,
+        'params' : {}
+      };
+    `;
+    containerRef.current.appendChild(configScript);
+
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = `//www.highperformanceformat.com/${zoneId}/invoke.js`;
+    containerRef.current.appendChild(script);
+  }, [zoneId]);
+
+  return <div ref={containerRef} className="w-full flex justify-center py-2 min-h-[250px] bg-slate-950/20 border border-slate-800 rounded-xl" />;
+}
+
+// Safe Dynamic Script Injector for Adsterra Native Ads
+function AdsterraNative({ zoneId }: { zoneId: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!zoneId || !containerRef.current) return;
+
+    containerRef.current.innerHTML = "";
+
+    const wrapper = document.createElement("div");
+    wrapper.id = `container-native-${zoneId}`;
+    containerRef.current.appendChild(wrapper);
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.dataset.cfasync = "false";
+    script.src = `//www.highperformanceformat.com/${zoneId}/invoke.js`;
+    containerRef.current.appendChild(script);
+  }, [zoneId]);
+
+  return <div ref={containerRef} className="w-full py-2 min-h-[100px]" />;
+}
 
 export default function LinkBypassPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const ads = useAdsterra(); // Hook to fetch publisher ad codes dynamically
 
   // States
   const [loading, setLoading] = useState(true);
@@ -30,6 +91,32 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     fetchLinkInfo();
   }, [slug]);
 
+  // Social Bar script injection (runs dynamically once configuration is fetched)
+  useEffect(() => {
+    if (ads.enableSocialBar && ads.socialBarZone) {
+      const script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src = `//www.highperformanceformat.com/${ads.socialBarZone}/invoke.js`;
+      document.body.appendChild(script);
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, [ads.enableSocialBar, ads.socialBarZone]);
+
+  // Popunder script injection (runs dynamically once configuration is fetched)
+  useEffect(() => {
+    if (ads.enablePopunder && ads.popunderZone) {
+      const script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src = `//www.highperformanceformat.com/51/ae/79/51ae797372cf93b08e2f6943bf7e4361.js`; // Standard popunder execution code using Zone ID mapping
+      document.body.appendChild(script);
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, [ads.enablePopunder, ads.popunderZone]);
+
   const fetchLinkInfo = async () => {
     setLoading(true);
     setErrorMsg("");
@@ -42,7 +129,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       if (data.hasPassword) {
         setPasswordRequired(true);
       } else {
-        // Automatically start visit if no password
         startVisitSession("");
       }
     } catch (err: any) {
@@ -52,7 +138,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     }
   };
 
-  // Perform client-side bot detection & fingerprinting
   const getFingerprintAndBotFlags = async () => {
     const canvas = document.createElement("canvas");
     const gl = canvas.getContext("webgl") as any;
@@ -71,13 +156,11 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       renderer,
     };
 
-    // Simple hash using browser Crypto API
     const msgUint8 = new TextEncoder().encode(JSON.stringify(fingerprintRaw));
     const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const fingerprintHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
-    // Bot detection flags
     const webdriver = navigator.webdriver || false;
     const headless = /HeadlessChrome/.test(navigator.userAgent) || window.outerHeight === 0 || window.outerWidth === 0;
 
@@ -123,7 +206,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     }
   };
 
-  // Countdown timer logic
   useEffect(() => {
     let timer: any;
     if (countdownActive && countdown > 0) {
@@ -137,8 +219,12 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   }, [countdown, countdownActive]);
 
   const handleNextStep = async () => {
+    // Open Direct Link in a new tab when clicking next step as extra monetization (if enabled)
+    if (ads.enableDirectLink && ads.directLink) {
+      window.open(ads.directLink, "_blank", "noopener,noreferrer");
+    }
+
     if (currentStep === 1) {
-      // Transition Step 1 -> Step 2
       setLoading(true);
       try {
         const res = await fetch("/api/visit/step", {
@@ -159,7 +245,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
         setLoading(false);
       }
     } else if (currentStep === 2) {
-      // Transition Step 2 -> Step 3 (Captcha)
       setLoading(true);
       try {
         const res = await fetch("/api/visit/step", {
@@ -173,11 +258,9 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
         setVisitToken(data.token);
         setCurrentStep(3);
 
-        // Load Turnstile if enabled
         if (siteSettings.captchaEnabled) {
           setTimeout(() => renderTurnstile(), 500);
         } else {
-          // Bypass Captcha directly if disabled
           verifyCaptcha("development-mock-token");
         }
       } catch (err: any) {
@@ -188,17 +271,15 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     }
   };
 
-  // Cloudflare Turnstile loader script
   const renderTurnstile = () => {
     if ((window as any).turnstile) {
       (window as any).turnstile.render(turnstileRef.current, {
-        sitekey: "1x00000000000000000000AA", // Cloudflare Turnstile Testing Sitekey
+        sitekey: "1x00000000000000000000AA",
         callback: (token: string) => {
           verifyCaptcha(token);
         },
       });
     } else {
-      // If script not loaded yet, inject and retry
       const script = document.createElement("script");
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
       script.async = true;
@@ -220,7 +301,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       if (!res.ok) throw new Error(data.error);
 
       setVisitToken(data.token);
-      setCurrentStep(4); // Get Link Step
+      setCurrentStep(4);
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -229,9 +310,13 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   };
 
   const handleGetLink = async () => {
+    // Open Direct Link on final click as well
+    if (ads.enableDirectLink && ads.directLink) {
+      window.open(ads.directLink, "_blank", "noopener,noreferrer");
+    }
+
     setLoading(true);
     try {
-      // Trigger reward
       const rewardRes = await fetch("/api/visit/reward", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -241,9 +326,8 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       if (!rewardRes.ok) throw new Error(rewardData.error);
 
       const nextTok = rewardData.token;
-      setCurrentStep(5); // Redirection state
+      setCurrentStep(5);
 
-      // Trigger Redirection
       const redirectRes = await fetch("/api/visit/redirect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -252,7 +336,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       const redirectData = await redirectRes.json();
       if (!redirectRes.ok) throw new Error(redirectData.error);
 
-      // Perform redirection
       window.location.replace(redirectData.originalUrl);
 
     } catch (err: any) {
@@ -294,7 +377,6 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
             </button>
           </div>
         ) : passwordRequired ? (
-          /* Password protect block */
           <div className="w-full bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
             <div className="flex items-center space-x-3 text-indigo-400">
               <Lock className="h-6 w-6" />
@@ -326,9 +408,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
             </form>
           </div>
         ) : (
-          /* Bypass Progress Box */
           <div className="w-full space-y-6">
-            {/* Progress indicators */}
             <div className="flex items-center justify-between text-xs text-slate-500 uppercase font-semibold px-2">
               <span>Tiến trình</span>
               <span>Bước {currentStep} / 4</span>
@@ -340,25 +420,23 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
               ></div>
             </div>
 
-            {/* Displaying step instructions */}
             <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl text-center space-y-6 shadow-xl relative overflow-hidden">
               {currentStep === 1 && (
                 <>
                   <Sparkles className="h-8 w-8 text-indigo-400 mx-auto animate-pulse" />
                   <div>
                     <h3 className="font-bold text-lg">Bước 1: Tải Banner Tài Trợ</h3>
-                    <p className="text-xs text-slate-500 mt-1">Đang cấu hình dữ liệu liên kết...</p>
+                    <p className="text-xs text-slate-500 mt-1">Đang tải tài nguyên quảng cáo...</p>
                   </div>
 
-                  {/* Banner Ad Area */}
-                  <div className="h-28 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500 relative">
-                    <span className="absolute top-1 right-2 text-[9px] text-slate-600 uppercase font-semibold">Quảng cáo</span>
-                    {siteSettings?.bannerCode ? (
-                      <div dangerouslySetInnerHTML={{ __html: siteSettings.bannerCode }} />
-                    ) : (
-                      <span>Vui lòng xem Banner quảng cáo phía trên</span>
-                    )}
-                  </div>
+                  {/* Render Adsterra Banner Dynamically */}
+                  {ads.enableBanner && ads.bannerZone ? (
+                    <AdsterraBanner zoneId={ads.bannerZone} />
+                  ) : (
+                    <div className="h-28 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500">
+                      <span>Đang cấu hình nhà tài trợ quảng cáo...</span>
+                    </div>
+                  )}
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -381,15 +459,14 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                     <p className="text-xs text-slate-500 mt-1">Countdown xác nhận đang đếm ngược...</p>
                   </div>
 
-                  {/* Social Bar / Popunder Area placeholder */}
-                  <div className="h-20 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500 relative">
-                    <span className="absolute top-1 right-2 text-[9px] text-slate-600 uppercase font-semibold">Quảng cáo</span>
-                    {siteSettings?.socialBarCode ? (
-                      <div dangerouslySetInnerHTML={{ __html: siteSettings.socialBarCode }} />
-                    ) : (
+                  {/* Render Native Banner Ad if configured */}
+                  {ads.enableNative && ads.nativeZone ? (
+                    <AdsterraNative zoneId={ads.nativeZone} />
+                  ) : (
+                    <div className="h-20 bg-slate-950/40 border border-slate-800 rounded-xl flex items-center justify-center text-xs text-slate-500">
                       <span>Đang tải thông điệp quảng cáo tài trợ...</span>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -420,11 +497,18 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
 
               {currentStep === 4 && (
                 <>
-                  <CheckCircleIcon className="h-10 w-10 text-emerald-500 mx-auto" />
+                  <CheckCircle className="h-10 w-10 text-emerald-500 mx-auto" />
                   <div>
                     <h3 className="font-bold text-lg">Xác minh hoàn tất!</h3>
                     <p className="text-xs text-slate-400 mt-1">Đường dẫn đích đã được giải mã và sẵn sàng chuyển hướng.</p>
                   </div>
+
+                  {/* Render Adsterra Banner as additional banner inside Step 4 */}
+                  {ads.enableBanner && ads.bannerZone && (
+                    <div className="my-2">
+                      <AdsterraBanner zoneId={ads.bannerZone} />
+                    </div>
+                  )}
 
                   <button
                     onClick={handleGetLink}
@@ -447,15 +531,9 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
       </main>
 
       {/* Footer disclaimer */}
-      <footer className="max-w-4xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] text-slate-650">
+      <footer className="max-w-4xl mx-auto w-full text-center py-4 border-t border-slate-800 text-[10px] text-slate-600">
         Bằng cách nhấp lấy liên kết, bạn đồng ý với các Điều khoản dịch vụ và Chính sách bảo mật của Folink.
       </footer>
     </div>
   );
 }
-
-const CheckCircleIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
