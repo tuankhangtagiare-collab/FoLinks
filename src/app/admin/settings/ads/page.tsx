@@ -273,7 +273,7 @@ export default function AdsterraSettingsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>Popunder Ads</CardTitle>
-                <CardDescription>Quảng cáo ẩn trang chuyển tiếp.</CardDescription>
+                <CardDescription>Quảng cáo ẩn trang chuyển tiếp (Anti-Adblock).</CardDescription>
               </div>
               <input
                 type="checkbox"
@@ -284,14 +284,15 @@ export default function AdsterraSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Popunder Zone ID</label>
+                <label className="text-sm font-medium">Popunder Script URL <span className="text-xs text-slate-400 font-normal">(Anti-Adblock JS SYNC)</span></label>
                 <input
                   type="text"
                   value={popunderZone}
                   onChange={(e) => setPopunderZone(e.target.value)}
-                  placeholder="Mã phân vùng popunder..."
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:outline-none"
+                  placeholder="https://manhoodinvoluntaryplash.com/ff/.../xxx.js"
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:outline-none font-mono"
                 />
+                <p className="text-[11px] text-slate-400">Dán URL từ thẻ &lt;script src="..."&gt; trong mục <strong>ANTI-ADBLOCK JS SYNC</strong> trên Adsterra dashboard.</p>
               </div>
             </CardContent>
           </Card>

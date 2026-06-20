@@ -10,7 +10,8 @@ const adsterraSchema = z.object({
   bannerZone: z.string().regex(/^\d*$/, "Zone ID chỉ được chứa số").optional().nullable(),
   socialBarZone: z.string().regex(/^\d*$/, "Zone ID chỉ được chứa số").optional().nullable(),
   nativeZone: z.string().regex(/^\d*$/, "Zone ID chỉ được chứa số").optional().nullable(),
-  popunderZone: z.string().regex(/^\d*$/, "Zone ID chỉ được chứa số").optional().nullable(),
+  // popunderZone stores either a numeric Zone ID OR a full https:// Anti-Adblock JS script URL
+  popunderZone: z.string().optional().nullable(),
   enableDirectLink: z.boolean().default(false),
   enableBanner: z.boolean().default(false),
   enableSocialBar: z.boolean().default(false),

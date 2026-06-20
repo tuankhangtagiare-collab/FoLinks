@@ -110,12 +110,21 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     };
   }, [ads.isLoading, ads.enableSocialBar, SOCIAL_ZONE]);
 
-  // Popunder script injection — only when enabled and zone ID is valid
+  // Popunder script injection — Anti-Adblock JS SYNC or legacy zone ID
   useEffect(() => {
     if (ads.isLoading || !ads.enablePopunder || !POPUNDER_ZONE) return;
+
     const script = document.createElement("script");
     script.type = "text/javascript";
-    script.src = `//www.highperformanceformat.com/${POPUNDER_ZONE}/invoke.js`;
+
+    // If popunderZone is a full URL (Anti-Adblock JS SYNC from Adsterra), use it directly
+    // Otherwise treat it as a numeric zone ID for highperformanceformat.com
+    if (POPUNDER_ZONE.startsWith("http")) {
+      script.src = POPUNDER_ZONE;
+    } else {
+      script.src = `//www.highperformanceformat.com/${POPUNDER_ZONE}/invoke.js`;
+    }
+
     document.body.appendChild(script);
     return () => {
       if (document.body.contains(script)) document.body.removeChild(script);

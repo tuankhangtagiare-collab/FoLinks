@@ -61,16 +61,21 @@ export function getSecurityHeaders() {
       https://*.adsterra.com https://cdn.adsterra.com
       https://challenges.cloudflare.com
       https://*.highperformanceformat.com https://highperformanceformat.com
+      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
       https://*.adtrafficquality.google https://*.googlesyndication.com
       https://*.doubleclick.net https://*.googletagmanager.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.adsterra.com;
     img-src 'self' blob: data:
       https://res.cloudinary.com
       https://*.adsterra.com https://*.highperformanceformat.com
+      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
       https://*.doubleclick.net https://*.googlesyndication.com
       https://*.googletagmanager.com;
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' https://*.adsterra.com https://*.highperformanceformat.com https://challenges.cloudflare.com;
+    connect-src 'self'
+      https://*.adsterra.com https://*.highperformanceformat.com
+      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
+      https://challenges.cloudflare.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
@@ -78,6 +83,7 @@ export function getSecurityHeaders() {
       https://challenges.cloudflare.com
       https://*.highperformanceformat.com https://highperformanceformat.com
       https://*.adsterra.com
+      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
       https://*.doubleclick.net https://*.googlesyndication.com;
     frame-ancestors 'none';
     upgrade-insecure-requests;
