@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Người dùng", href: "/admin/users", icon: Users, show: isAdmin || isModerator },
     { name: "Liên kết", href: "/admin/links", icon: Link2, show: isAdmin || isModerator },
     { name: "Xử lý Rút tiền", href: "/admin/withdraw", icon: ArrowDownCircle, show: isAdmin },
-    { name: "Hệ thống Ads", href: "/admin/ads", icon: CloudLightning, show: isSuperAdmin },
+    { name: "Cấu hình Ads", href: "/admin/settings/ads", icon: CloudLightning, show: isAdmin },
     { name: "Hoạt động & Logs", href: "/admin/logs", icon: FileText, show: isSuperAdmin },
     { name: "Thông báo hệ thống", href: "/admin/announcements", icon: Megaphone, show: isAdmin },
     { name: "Hỗ trợ khách hàng", href: "/admin/support", icon: HelpCircle, show: isAdmin || isModerator },

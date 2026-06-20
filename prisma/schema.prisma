@@ -426,6 +426,23 @@ model SiteSettings {
   updatedAt             DateTime @updatedAt
 }
 
+model AdsterraSettings {
+  id                 String   @id @default(cuid())
+  publisherId        String?
+  directLink         String?
+  bannerZone         String?
+  socialBarZone      String?
+  nativeZone         String?
+  popunderZone       String?
+  enableDirectLink   Boolean  @default(false)
+  enableBanner       Boolean  @default(false)
+  enableSocialBar    Boolean  @default(false)
+  enableNative       Boolean  @default(false)
+  enablePopunder     Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model BannerImages {
   id           String   @id @default(cuid())
   imageUrl     String   @db.Text
