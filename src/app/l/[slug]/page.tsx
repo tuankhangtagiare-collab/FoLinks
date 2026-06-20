@@ -5,7 +5,7 @@ import { Shield, Sparkles, RefreshCw, Lock, AlertTriangle, ArrowRight, CheckCirc
 import { useAdsterra } from "@/components/useAdsterra";
 
 // Safe Dynamic Script Injector for Adsterra Banner
-function AdsterraBanner({ zoneId }: { zoneId: string }) {
+function AdsterraBanner({ zoneId }: { zoneId: string | undefined }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ function AdsterraBanner({ zoneId }: { zoneId: string }) {
 }
 
 // Safe Dynamic Script Injector for Adsterra Native Ads
-function AdsterraNative({ zoneId }: { zoneId: string }) {
+function AdsterraNative({ zoneId }: { zoneId: string | undefined }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,12 +66,12 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   const { slug } = use(params);
   const ads = useAdsterra();
 
-  // Demo Fallback IDs if not configured in Neon Dashboard
-  const BANNER_ZONE = ads.bannerZone || "51ae797372cf93b08e2f6943bf7e4361"; // Fallback Testing ID
-  const NATIVE_ZONE = ads.nativeZone || "8e02d689b910b83e30be9080bb83e30b"; // Fallback Testing ID
-  const SOCIAL_ZONE = ads.socialBarZone || "51ae797372cf93b08e2f6943bf7e4361";
-  const POPUNDER_ZONE = ads.popunderZone || "51ae797372cf93b08e2f6943bf7e4361";
-  const DIRECT_LINK_URL = ads.directLink || "https://www.highperformanceformat.com/51ae797372cf93b08e2f6943bf7e4361";
+  // Only use zone IDs from DB — no hardcoded fallbacks that could inject bad scripts
+  const BANNER_ZONE = ads.bannerZone;
+  const NATIVE_ZONE = ads.nativeZone;
+  const SOCIAL_ZONE = ads.socialBarZone;
+  const POPUNDER_ZONE = ads.popunderZone;
+  const DIRECT_LINK_URL = ads.directLink || null;
 
   // States
   const [loading, setLoading] = useState(true);
@@ -98,28 +98,29 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
     fetchLinkInfo();
   }, [slug]);
 
-  // Social Bar script injection (fallback to active even if DB values are not yet customized)
+  // Social Bar script injection — only when enabled and zone ID is valid
   useEffect(() => {
-    const activeZone = SOCIAL_ZONE;
+    if (ads.isLoading || !ads.enableSocialBar || !SOCIAL_ZONE) return;
     const script = document.createElement("script");
     script.type = "text/javascript";
-    script.src = `//www.highperformanceformat.com/${activeZone}/invoke.js`;
+    script.src = `//www.highperformanceformat.com/${SOCIAL_ZONE}/invoke.js`;
     document.body.appendChild(script);
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) document.body.removeChild(script);
     };
-  }, [SOCIAL_ZONE]);
+  }, [ads.isLoading, ads.enableSocialBar, SOCIAL_ZONE]);
 
-  // Popunder script injection
+  // Popunder script injection — only when enabled and zone ID is valid
   useEffect(() => {
+    if (ads.isLoading || !ads.enablePopunder || !POPUNDER_ZONE) return;
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.src = `//www.highperformanceformat.com/${POPUNDER_ZONE}/invoke.js`;
     document.body.appendChild(script);
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) document.body.removeChild(script);
     };
-  }, [POPUNDER_ZONE]);
+  }, [ads.isLoading, ads.enablePopunder, POPUNDER_ZONE]);
 
   const fetchLinkInfo = async () => {
     setLoading(true);
@@ -223,7 +224,9 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
 
   const handleNextStep = async () => {
     // Open Direct Link in a new tab when clicking next step as extra monetization (if enabled)
-    window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
+    if (DIRECT_LINK_URL) {
+      window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
+    }
 
     if (currentStep === 1) {
       setLoading(true);
@@ -328,7 +331,9 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
   };
 
   const handleGetLink = async () => {
-    window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
+    if (DIRECT_LINK_URL) {
+      window.open(DIRECT_LINK_URL, "_blank", "noopener,noreferrer");
+    }
 
     setLoading(true);
     try {
@@ -424,11 +429,13 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
           </div>
         ) : (
           <div className="w-full space-y-6">
-            {/* Top Banner Ad Slot - Render Always for Maximum Monetization */}
-            <div className="w-full text-center space-y-1">
-              <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
-              <AdsterraBanner zoneId={BANNER_ZONE} />
-            </div>
+            {/* Top Banner Ad Slot */}
+            {ads.enableBanner && BANNER_ZONE && (
+              <div className="w-full text-center space-y-1">
+                <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
+                <AdsterraBanner zoneId={BANNER_ZONE} />
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-xs text-slate-500 uppercase font-semibold px-2">
               <span>Tiến trình</span>
@@ -451,7 +458,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                   </div>
 
                   {/* Render Adsterra Banner inside container */}
-                  <AdsterraBanner zoneId={BANNER_ZONE} />
+                  {ads.enableBanner && BANNER_ZONE && <AdsterraBanner zoneId={BANNER_ZONE} />}
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -475,7 +482,7 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                   </div>
 
                   {/* Render Native Banner Ad */}
-                  <AdsterraNative zoneId={NATIVE_ZONE} />
+                  {ads.enableNative && NATIVE_ZONE && <AdsterraNative zoneId={NATIVE_ZONE} />}
 
                   {countdownActive ? (
                     <div className="text-sm font-bold text-indigo-400">Vui lòng đợi: {countdown}s</div>
@@ -527,9 +534,11 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
                     <p className="text-xs text-slate-400 mt-1">Đường dẫn đích đã được giải mã và sẵn sàng chuyển hướng.</p>
                   </div>
 
-                  <div className="my-2">
-                    <AdsterraBanner zoneId={BANNER_ZONE} />
-                  </div>
+                  {ads.enableBanner && BANNER_ZONE && (
+                    <div className="my-2">
+                      <AdsterraBanner zoneId={BANNER_ZONE} />
+                    </div>
+                  )}
 
                   <button
                     onClick={handleGetLink}
@@ -548,11 +557,13 @@ export default function LinkBypassPage({ params }: { params: Promise<{ slug: str
               )}
             </div>
 
-            {/* Bottom Banner Ad Slot - Render Always for Maximum Monetization */}
-            <div className="w-full text-center space-y-1">
-              <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
-              <AdsterraBanner zoneId={BANNER_ZONE} />
-            </div>
+            {/* Bottom Banner Ad Slot */}
+            {ads.enableBanner && BANNER_ZONE && (
+              <div className="w-full text-center space-y-1">
+                <span className="text-[10px] text-slate-600 uppercase font-semibold">Nhà tài trợ</span>
+                <AdsterraBanner zoneId={BANNER_ZONE} />
+              </div>
+            )}
           </div>
         )}
       </main>
