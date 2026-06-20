@@ -247,7 +247,7 @@ export default function LinksListPage() {
                     <td className="px-6 py-4">
                       <div>{link.validViews} <span className="text-xs text-slate-400">/ {link.views}</span></div>
                     </td>
-                    <td className="px-6 py-4">${link.cpm.toFixed(2)}</td>
+                    <td className="px-6 py-4">${Number(link.cpm).toFixed(2)}</td>
                     <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{formatCurrency(link.revenue)}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${

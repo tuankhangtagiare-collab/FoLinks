@@ -160,7 +160,7 @@ export default function LinkDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             <div className="text-center">
               <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                ${data.link.cpm.toFixed(2)}
+                ${Number(data.link.cpm).toFixed(2)}
               </div>
               <span className="text-xs text-slate-500 uppercase font-semibold">CPM liên kết</span>
             </div>
