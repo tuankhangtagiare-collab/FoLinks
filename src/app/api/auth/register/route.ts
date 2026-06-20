@@ -16,8 +16,12 @@ export async function POST(req: NextRequest) {
     const validatedFields = RegisterSchema.safeParse(body);
 
     if (!validatedFields.success) {
+      console.log("Validation failed for registration:", validatedFields.error.flatten().fieldErrors);
       return NextResponse.json(
-        { error: "Dữ liệu đăng ký không hợp lệ", details: validatedFields.error.flatten().fieldErrors },
+        { 
+          error: "Dữ liệu đăng ký không hợp lệ", 
+          details: validatedFields.error.flatten().fieldErrors 
+        },
         { status: 422 }
       );
     }

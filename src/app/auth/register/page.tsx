@@ -46,10 +46,13 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Show detailed validation messages if present
+        console.error("Registration failed details:", data);
         if (data.details) {
-          const detailMsgs = Object.values(data.details).flat().join(". ");
-          setError(`${data.error}: ${detailMsgs}`);
+          // Flatten standard Zod errors: { username: ["error..."], password: ["error..."] }
+          const errorsList = Object.entries(data.details)
+            .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)
+            .join(" | ");
+          setError(`Đăng ký thất bại: ${errorsList}`);
         } else {
           setError(data.error || "Có lỗi xảy ra trong quá trình đăng ký.");
         }
