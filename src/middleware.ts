@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getSecurityHeaders, isRateLimited, getClientIp } from "./lib/security";
+import { getSecurityHeaders, getAdPageSecurityHeaders, isRateLimited, getClientIp } from "./lib/security";
 
 const { auth } = NextAuth(authConfig);
 
@@ -104,8 +104,10 @@ export default auth(async (req) => {
   }
 
   // Append security headers to all responses
+  // Use permissive CSP for ad-monetized bypass pages, strict CSP for everything else
+  const isBypassPage = nextUrl.pathname.startsWith("/l/") || nextUrl.pathname.startsWith("/go/");
   const response = NextResponse.next();
-  const headersObj = getSecurityHeaders();
+  const headersObj = isBypassPage ? getAdPageSecurityHeaders() : getSecurityHeaders();
   Object.entries(headersObj).forEach(([key, val]) => {
     response.headers.set(key, val);
   });

@@ -54,41 +54,52 @@ export function getClientIp(req: NextRequest): string {
 }
 
 // Helmet & CSP Headers setup helper
+// Strict CSP for admin/dashboard/auth pages
 export function getSecurityHeaders() {
-  const AD_DOMAINS = `
-    https://*.adsterra.com https://cdn.adsterra.com
-    https://challenges.cloudflare.com
-    https://*.highperformanceformat.com https://highperformanceformat.com
-    https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
-    https://*.adtrafficquality.google https://*.googlesyndication.com
-    https://*.doubleclick.net https://*.googletagmanager.com
-  `;
-
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' ${AD_DOMAINS};
-    script-src-elem 'self' 'unsafe-inline' ${AD_DOMAINS};
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.adsterra.com;
-    img-src 'self' blob: data:
-      https://res.cloudinary.com
-      https://*.adsterra.com https://*.highperformanceformat.com
-      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
-      https://*.doubleclick.net https://*.googlesyndication.com
-      https://*.googletagmanager.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com;
+    script-src-elem 'self' 'unsafe-inline' https://challenges.cloudflare.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src 'self' blob: data: https://res.cloudinary.com;
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self'
-      https://*.adsterra.com https://*.highperformanceformat.com
-      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
-      https://challenges.cloudflare.com;
+    connect-src 'self';
     object-src 'none';
     base-uri 'self';
     form-action 'self';
-    frame-src 'self'
-      https://challenges.cloudflare.com
-      https://*.highperformanceformat.com https://highperformanceformat.com
-      https://*.adsterra.com
-      https://manhoodinvoluntaryplash.com https://*.manhoodinvoluntaryplash.com
-      https://*.doubleclick.net https://*.googlesyndication.com;
+    frame-src 'self' https://challenges.cloudflare.com;
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, " ").trim();
+
+  return {
+    "Content-Security-Policy": cspHeader,
+    "X-DNS-Prefetch-Control": "on",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "X-XSS-Protection": "1; mode=block",
+  };
+}
+
+// Permissive CSP for ad-monetized bypass pages (/l/*, /go/*)
+// Adsterra scripts chain-load from many unpredictable CDN domains,
+// so we must allow broad script sources on these public pages.
+export function getAdPageSecurityHeaders() {
+  const cspHeader = `
+    default-src 'self';
+    script-src * 'unsafe-eval' 'unsafe-inline';
+    script-src-elem * 'unsafe-inline';
+    style-src * 'unsafe-inline';
+    img-src * blob: data:;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src *;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-src *;
     frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, " ").trim();
