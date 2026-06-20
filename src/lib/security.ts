@@ -57,14 +57,14 @@ export function getClientIp(req: NextRequest): string {
 export function getSecurityHeaders() {
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.adsterra.com https://cdn.adsterra.com https://challenges.cloudflare.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.adsterra.com https://cdn.adsterra.com https://challenges.cloudflare.com https://*.highperformanceformat.com https://highperformanceformat.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://res.cloudinary.com https://*.adsterra.com;
+    img-src 'self' blob: data: https://res.cloudinary.com https://*.adsterra.com https://*.highperformanceformat.com;
     font-src 'self' https://fonts.gstatic.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
-    frame-src 'self' https://challenges.cloudflare.com;
+    frame-src 'self' https://challenges.cloudflare.com https://*.highperformanceformat.com https://highperformanceformat.com;
     frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, " ").trim();
