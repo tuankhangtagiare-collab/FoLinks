@@ -80,7 +80,11 @@ export default auth(async (req) => {
 
   if (isApiRoute && !isApiAuthRoute) {
     // API guards
-    const isPublicApi = nextUrl.pathname.startsWith("/api/public") || nextUrl.pathname === "/api/shorten/bypass";
+    const isPublicApi = nextUrl.pathname.startsWith("/api/public") 
+      || nextUrl.pathname === "/api/shorten/bypass"
+      || nextUrl.pathname.startsWith("/api/visit")
+      || nextUrl.pathname.startsWith("/api/captcha")
+      || nextUrl.pathname.startsWith("/api/link");
     if (!isPublicApi && !isLoggedIn) {
       return new NextResponse(
         JSON.stringify({ error: "Không được phép truy cập (Unauthorized)" }),

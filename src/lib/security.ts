@@ -57,14 +57,28 @@ export function getClientIp(req: NextRequest): string {
 export function getSecurityHeaders() {
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.adsterra.com https://cdn.adsterra.com https://challenges.cloudflare.com https://*.highperformanceformat.com https://highperformanceformat.com;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://res.cloudinary.com https://*.adsterra.com https://*.highperformanceformat.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline'
+      https://*.adsterra.com https://cdn.adsterra.com
+      https://challenges.cloudflare.com
+      https://*.highperformanceformat.com https://highperformanceformat.com
+      https://*.adtrafficquality.google https://*.googlesyndication.com
+      https://*.doubleclick.net https://*.googletagmanager.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.adsterra.com;
+    img-src 'self' blob: data:
+      https://res.cloudinary.com
+      https://*.adsterra.com https://*.highperformanceformat.com
+      https://*.doubleclick.net https://*.googlesyndication.com
+      https://*.googletagmanager.com;
     font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://*.adsterra.com https://*.highperformanceformat.com https://challenges.cloudflare.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
-    frame-src 'self' https://challenges.cloudflare.com https://*.highperformanceformat.com https://highperformanceformat.com;
+    frame-src 'self'
+      https://challenges.cloudflare.com
+      https://*.highperformanceformat.com https://highperformanceformat.com
+      https://*.adsterra.com
+      https://*.doubleclick.net https://*.googlesyndication.com;
     frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, " ").trim();

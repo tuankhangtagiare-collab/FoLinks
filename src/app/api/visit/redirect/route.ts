@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const payload = verifyToken(token);
 
-    if (!payload || payload.ip !== ip) {
+    if (!payload) {
       return NextResponse.json({ error: "Phiên làm việc không hợp lệ." }, { status: 400 });
     }
 
