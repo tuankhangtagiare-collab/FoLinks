@@ -292,7 +292,7 @@ export default function AdsterraSettingsPage() {
                   placeholder="https://manhoodinvoluntaryplash.com/ff/.../xxx.js"
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:outline-none font-mono"
                 />
-                <p className="text-[11px] text-slate-400">Dán URL từ thẻ &lt;script src="..."&gt; trong mục <strong>ANTI-ADBLOCK JS SYNC</strong> trên Adsterra dashboard.</p>
+                <p className="text-[11px] text-slate-400">Dán URL từ thẻ &lt;script src=&quot;...&quot;&gt; trong mục <strong>ANTI-ADBLOCK JS SYNC</strong> trên Adsterra dashboard.</p>
               </div>
             </CardContent>
           </Card>
